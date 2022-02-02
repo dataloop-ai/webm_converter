@@ -3,7 +3,7 @@ import os
 
 from modules_definition import get_webm_modules
 
-package_name = 'webm_converter-converter'
+package_name = 'webm-converter'
 project_name = 'projectName'
 
 project = dl.projects.get(project_name=project_name)
@@ -78,7 +78,7 @@ trigger = project.triggers.create(
             },
             {
                 'metadata.system.mimetype': {
-                    '$ne': 'video/webm_converter'
+                    '$ne': 'video/webm'
                 }
             },
             {

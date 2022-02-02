@@ -445,7 +445,7 @@ class WebmConverter(dl.BaseServiceRunner):
             summary=summary
         )
 
-    def run(self, item: dl.Item, progress=None):
+    def run_webm_converter(self, item: dl.Item, progress=None):
         ##################
         # webm converter #
         ##################
@@ -468,6 +468,7 @@ class WebmConverter(dl.BaseServiceRunner):
 
             if not success:
                 raise Exception(msg)
+            return item
 
         except Exception as e:
             raise ValueError('[webm-converter] failed\n error: {}'.format(e))
