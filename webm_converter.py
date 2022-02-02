@@ -26,7 +26,7 @@ class WebmConverter(dl.BaseServiceRunner):
 
     """
 
-    def __init__(self, method=ConversionMethod.FFMPEG):
+    def __init__(self, method=ConversionMethod.OPENCV):
         self.video_handler = VideoPreprocess()
         self.method = method
         if method == ConversionMethod.OPENCV:
@@ -322,12 +322,16 @@ class WebmConverter(dl.BaseServiceRunner):
                 'height': item.height,
                 'width': item.width,
                 'fps': item.metadata['fps'],
-                'duration': float(item.metadata['system']['duration']),
-                'nb_read_frames': item.metadata['system']['ffmpeg']['nb_read_frames'],
-                'nb_streams': item.metadata['system'].get('nb_streams', 1)
             }
+
+            if item.metadata['system'].get('duration', None) is not None:
+                orig_metadata['duration'] = float(item.metadata['system']['duration'])
+
+            if item.metadata['system']['ffmpeg'].get('nb_read_frames', None) is not None:
+                orig_metadata['nb_read_frames'] = int(item.metadata['system']['ffmpeg']['nb_read_frames'])
+
             if item.metadata['system']['ffmpeg'].get('nb_frames', None) is not None:
-                orig_metadata['nb_frames'] = item.metadata['system']['ffmpeg']['nb_frames']
+                orig_metadata['nb_frames'] = int(item.metadata['system']['ffmpeg']['nb_frames'])
 
         logger.info('{header} downloading item'.format(header=log_header))
 
@@ -445,7 +449,7 @@ class WebmConverter(dl.BaseServiceRunner):
             summary=summary
         )
 
-    def run_webm_converter(self, item: dl.Item, progress=None):
+    def run(self, item: dl.Item, progress=None):
         ##################
         # webm converter #
         ##################
@@ -468,7 +472,6 @@ class WebmConverter(dl.BaseServiceRunner):
 
             if not success:
                 raise Exception(msg)
-            return item
 
         except Exception as e:
             raise ValueError('[webm-converter] failed\n error: {}'.format(e))
