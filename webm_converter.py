@@ -91,11 +91,11 @@ class WebmConverter(dl.BaseServiceRunner):
 
     def _convert_to_webm_opencv(self, item, filepath, nb_streams):
         tic = time.time()
-        output_file_path = os.path.join(filepath, '{}.webm_converter'.format(item.id))
+        output_file_path = os.path.join(filepath, '{}.webm'.format(item.id))
         input_file_path = os.path.join(filepath, item.name)
 
         # start extract the video
-        webm_video = str(os.path.join(filepath, 'video.webm_converter'))
+        webm_video = str(os.path.join(filepath, 'video.webm'))
         # self.convert_use_opencv_python(item=item, webm_video=webm_video)
         cmd = [
             './opencv_converter',
@@ -126,7 +126,7 @@ class WebmConverter(dl.BaseServiceRunner):
                 else:
                     raise err
 
-            # marge video and audio file into one webm_converter file
+            # marge video and audio file into one webm file
             if have_audio:
                 cmd = [
                     'ffmpeg',
@@ -142,6 +142,7 @@ class WebmConverter(dl.BaseServiceRunner):
                     '0:0',
                     '-map',
                     '1:0',
+                    # -map 0:0 -map 1:0 - we map stream 0 (video) from first file, and stream 0 from second file (mp3) to output.
                     output_file_path
                 ]
                 self.video_handler.execute_cmd(cmd=cmd)
@@ -199,7 +200,7 @@ class WebmConverter(dl.BaseServiceRunner):
         item_arr = pre.split('/')[:-1]
         item_folder = '/'.join(item_arr)
 
-        remote_path = '/.dataloop/webm_converter{}'.format(item_folder)
+        remote_path = '/.dataloop/webm{}'.format(item_folder)
         webm_item = dataset.items.upload(
             local_path=webm_file_path,
             remote_path=remote_path,
@@ -301,16 +302,15 @@ class WebmConverter(dl.BaseServiceRunner):
 
     def webm_converter(self, item: dl.Item, workdir, progress=None):
         """
-        Convert to webm_converter for web
+        Convert to webm for web
 
         :param item: dl.Item
         :param workdir: dump path
         :param progress: progress
         :return:
         """
-        log_header = '[preprocess][on_create][{item_id}][{func}]'.format(item_id=item.id,
-                                                                         func='webm_converter-converter')
-        webm_filepath = os.path.join(workdir, '{}.webm_converter'.format(item.id))
+        log_header = '[preprocess][on_create][{item_id}][{func}]'.format(item_id=item.id, func='webm-converter')
+        webm_filepath = os.path.join(workdir, '{}.webm'.format(item.id))
         orig_filepath = os.path.join(workdir, item.name)
         orig_filepath = item.download(local_path=orig_filepath)
         if 'ffmpeg' not in item.metadata['system']:
@@ -369,9 +369,8 @@ class WebmConverter(dl.BaseServiceRunner):
             same = False
 
         if exp_frames_webm != exp_frames_orig:
-            summary['expected_frames'] = "webm_converter expected frames do not match the orig {} != {}".format(
-                exp_frames_webm,
-                exp_frames_orig)
+            summary['expected_frames'] = "webm expected frames do not match the orig {} != {}".format(exp_frames_webm,
+                                                                                                      exp_frames_orig)
             same = False
 
         if self.round_duration(summary['webm_duration']) != self.round_duration(summary['orig_duration']):
@@ -409,9 +408,9 @@ class WebmConverter(dl.BaseServiceRunner):
         )
 
         if same:
-            # webm_converter is the same as the original
+            # webm is the same as the original
             logger.info(
-                '{header} Original video and webm_converter are same. summary: {summary}. uploading'.format(
+                '{header} Original video and webm are same. summary: {summary}. uploading'.format(
                     header=log_header,
                     summary=summary
                 )
@@ -424,7 +423,7 @@ class WebmConverter(dl.BaseServiceRunner):
             )
 
             if not isinstance(webm_item, dl.Item):
-                raise Exception('Failed to upload webm_converter')
+                raise Exception('Failed to upload webm')
 
             # set modality on original
             self._set_item_modality(
@@ -435,20 +434,20 @@ class WebmConverter(dl.BaseServiceRunner):
         else:
             success = False
             logger.warning(
-                '{header} orig and webm_converter are NOT same. summary: {summary}'.format(
+                '{header} orig and webm are NOT same. summary: {summary}'.format(
                     header=log_header,
                     summary=summary
                 )
             )
 
-        return success, '{header} orig and webm_converter are NOT same. summary: {summary}'.format(
+        return success, '{header} orig and webm are NOT same. summary: {summary}'.format(
             header=log_header,
             summary=summary
         )
 
     def run(self, item: dl.Item, progress=None):
         ##################
-        # webm_converter converter #
+        # webm converter #
         ##################
         workdir = None
         success = False
@@ -471,7 +470,8 @@ class WebmConverter(dl.BaseServiceRunner):
                 raise Exception(msg)
 
         except Exception as e:
-            raise ValueError('[webm_converter-converter] failed\n error: {}'.format(e))
+            raise ValueError('[webm-converter] failed\n error: {}'.format(e))
         finally:
             if workdir is not None and os.path.isdir(workdir):
                 shutil.rmtree(workdir)
+
