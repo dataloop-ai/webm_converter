@@ -34,7 +34,7 @@ service = package.services.deploy(
     runtime=dl.KubernetesRuntime(
         concurrency=1,
         pod_type=dl.InstanceCatalog.REGULAR_M,
-        runner_image='gcr.io/viewo-g/piper/agent/cpu/webm_converter:4',
+        runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:4',
         autoscaler=dl.KubernetesRabbitmqAutoscaler(
             min_replicas=1,
             max_replicas=100,
@@ -60,7 +60,6 @@ trigger = triggers.items[0]
 
 trigger = project.triggers.create(
     name=package.name,
-    scope='system',
     service_id=service.id,
     execution_mode=dl.TriggerExecutionMode.ONCE,
     resource='Item',
