@@ -15,10 +15,18 @@ project = dl.projects.get(project_name=project_name)
 # for first package push
 module = get_webm_modules()[0]
 
+# build package use source code
+# package = project.packages.push(
+#     package_name=package_name,
+#     modules=[module],
+#     src_path=os.getcwd()
+# )
+
+# build package use GIT repo
 package = project.packages.push(
     package_name=package_name,
     modules=[module],
-    src_path=os.getcwd()
+    codebase=dl.GitCodebase(git_url='https://github.com/dataloop-ai/webm_converter.git', git_tag='main')
 )
 
 package = project.packages.get(package_name=package_name)
@@ -53,10 +61,11 @@ if package.version != service.package_revision:
 # new trigger creation #
 #######################
 
-triggers = service.triggers.list()
-if triggers.items_count != 1:
-    raise Exception('Triggers count is other than 1')
-trigger = triggers.items[0]
+# triggers = service.triggers.list()
+# if triggers.items_count != 1:
+#     raise Exception('Triggers count is other than 1')
+# trigger = triggers.items[0]
+
 
 trigger = project.triggers.create(
     name=package.name,
