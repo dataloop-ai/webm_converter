@@ -33,70 +33,16 @@ class WebmConverter(dl.BaseServiceRunner):
             cmd_build_file = ['chmod', '777', 'opencv_converter']
             self.video_handler.execute_cmd(cmd=cmd_build_file)
 
-    @staticmethod
-    def _duration_str_to_sec(time_str):
-        """Get Seconds from time."""
-        if time_str is None:
-            return None
-        try:
-            h, m, s = time_str.split(':')
-            return int(h) * 3600 + int(m) * 60 + float(s)
-        except Exception:
-            logger.exception("Got unsupported time_str: {!r}".format(time_str))
-            return None
-
-    def reader_proc(self, queue, cap_reader):
-        print('reader: {}'.format(os.getpid()))
-        while True:
-            ret, frame = cap_reader.read()
-            if not ret:
-                break
-            queue.put(frame)
-        queue.put('DONE')
-        cap_reader.release()
-
-    def writer_proc(self, queue, cap_writer):
-        print('write: {}'.format(os.getpid()))
-        while True:
-            frame = queue.get()
-            if isinstance(frame, str) and frame == 'DONE':
-                break
-            cap_writer.write(frame)
-        cap_writer.release()
-
-    def convert_use_opencv_python(self, item, webm_video):
-        import cv2
-        from multiprocessing import Process, Queue
-        from threading import Thread
-
-        cap = cv2.VideoCapture('{}?jwt={}'.format(item.stream, dl.token()))
-        w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        fourcc = 'VP80'
-        vid_writer = cv2.VideoWriter(webm_video,
-                                     cv2.VideoWriter_fourcc(*fourcc),
-                                     fps,
-                                     (w, h))
-        pqueue = Queue()  # writer() writes to pqueue from _this_ process
-        ### reader_proc() reads from pqueue as a separate process
-        reader_p = Thread(target=self.reader_proc, args=(pqueue, cap,))
-        reader_p.daemon = True
-        reader_p.start()  # Launch reader_proc() as a separate python process
-        writer_p = Thread(target=self.writer_proc, args=(pqueue, vid_writer,))
-        writer_p.daemon = True
-        writer_p.start()  # Launch reader_proc() as a separate python process
-        reader_p.join()  # Wait for the reader to finish
-        writer_p.join()
-
     def _convert_to_webm_opencv(self, item, filepath, nb_streams):
+        """
+        Convert the video use opencv
+        """
         tic = time.time()
         output_file_path = os.path.join(filepath, '{}.webm'.format(item.id))
         input_file_path = os.path.join(filepath, item.name)
 
         # start extract the video
         webm_video = str(os.path.join(filepath, 'video.webm'))
-        # self.convert_use_opencv_python(item=item, webm_video=webm_video)
         cmd = [
             './opencv_converter',
             '{}?jwt={}'.format(item.stream, dl.token()),
@@ -104,6 +50,7 @@ class WebmConverter(dl.BaseServiceRunner):
         ]
         self.video_handler.execute_cmd(cmd=cmd)
 
+        # if nb_streams is 2 this mean that the video have an audio
         if nb_streams == 2:
             have_audio = True
             # start extract the audio
@@ -160,6 +107,10 @@ class WebmConverter(dl.BaseServiceRunner):
                         item=None,
                         workdir=None,
                         nb_streams=1):
+        """
+        convert the video to webm
+        """
+        # use FFMPEG
         if self.method == ConversionMethod.FFMPEG:
             self._convert_to_webm_ffmpeg(
                 input_filepath=input_filepath,
@@ -169,12 +120,16 @@ class WebmConverter(dl.BaseServiceRunner):
                 progress=progress
             )
         else:
+            # use opencv
             self._convert_to_webm_opencv(
                 item=item,
                 filepath=workdir,
                 nb_streams=nb_streams)
 
     def _convert_to_webm_ffmpeg(self, input_filepath, output_filepath, fps, nb_frames=None, progress=None):
+        """
+        Convert the video use run a ffmpeg command
+        """
         cmds = [
             'ffmpeg',
             # To force the frame rate of the output file
@@ -228,6 +183,9 @@ class WebmConverter(dl.BaseServiceRunner):
         return float(int(number * 100)) / 100
 
     def verify_webm_conversion(self, webm_filepath: str, orig_metadata: dict):
+        """
+        verify the webm output if his metadata is match the origin video metadata
+        """
         webm_ffprobe = self.video_handler.metadata_extractor_from_ffmpeg(stream=webm_filepath, with_headers=False)
 
         webm_nb_read_frames = float(webm_ffprobe['nb_read_frames'])
@@ -313,6 +271,8 @@ class WebmConverter(dl.BaseServiceRunner):
         webm_filepath = os.path.join(workdir, '{}.webm'.format(item.id))
         orig_filepath = os.path.join(workdir, item.name)
         orig_filepath = item.download(local_path=orig_filepath)
+
+        # get the item metadata if it in the item else get it from run ffmpeg command
         if 'ffmpeg' not in item.metadata['system']:
             orig_metadata = self.video_handler.metadata_extractor_from_ffmpeg(stream=orig_filepath, with_headers=False)
         else:
@@ -341,6 +301,7 @@ class WebmConverter(dl.BaseServiceRunner):
 
         tic = time.time()
 
+        # convert the video to webm
         self.convert_to_webm(
             input_filepath=orig_filepath,
             output_filepath=webm_filepath,
@@ -358,6 +319,7 @@ class WebmConverter(dl.BaseServiceRunner):
             orig_metadata=orig_metadata
         )
 
+        # verify the webm output if his metadata is match the origin video metadata
         validate_webm, exp_frames_webm, validate_webm_msg = self.validate_video(summary['webm_fps'],
                                                                                 summary['webm_duration'],
                                                                                 summary['webm_nb_read_frames'])
@@ -377,6 +339,7 @@ class WebmConverter(dl.BaseServiceRunner):
                                                                                                       exp_frames_orig)
             same = False
 
+        # add a fail msg to item when the webm not match the original
         if self.round_duration(summary['webm_duration']) != self.round_duration(summary['orig_duration']):
             if 'system' not in item.metadata:
                 item.metadata['system'] = {}
@@ -478,4 +441,3 @@ class WebmConverter(dl.BaseServiceRunner):
         finally:
             if workdir is not None and os.path.isdir(workdir):
                 shutil.rmtree(workdir)
-
