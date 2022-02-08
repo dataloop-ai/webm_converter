@@ -24,6 +24,7 @@ module = get_webm_modules()[0]
 
 # build package use GIT repo
 package = project.packages.push(
+    # is_global=True,
     package_name=package_name,
     modules=[module],
     service_config={
@@ -46,7 +47,6 @@ package = project.packages.get(package_name=package_name)
 ###########
 # deploy for new service creation
 service = package.services.deploy(
-    is_global=True,
     service_name=package_name,
     execution_timeout=2 * 60 * 60,
     module_name=module.name,
