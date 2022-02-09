@@ -4,7 +4,8 @@ import os
 from modules_definition import get_webm_modules
 
 package_name = 'custom-webm-converter'
-project_name = 'projectName'
+# project_name = 'projectName'
+project_name = 'DataloopApps'
 
 project = dl.projects.get(project_name=project_name)
 
@@ -37,7 +38,7 @@ package = project.packages.push(
                 max_replicas=100,
                 queue_length=2
             )).to_json()},
-    codebase=dl.GitCodebase(git_url='https://github.com/dataloop-ai/webm_converter.git', git_tag='main')
+    codebase=dl.GitCodebase(git_url='https://github.com/dataloop-ai/webm_converter.git', git_tag='v1.0.0')
 )
 
 package = project.packages.get(package_name=package_name)

@@ -10,14 +10,20 @@ import os
 import math
 
 from video_preprocess import VideoPreprocess
+from enum import Enum
+
 
 logger = logging.getLogger(__name__)
 NUM_TRIES = 2
 
 
-class ConversionMethod:
+class ConversionMethod(str, Enum):
     FFMPEG = 'ffmpeg'
     OPENCV = 'opencv'
+
+    @staticmethod
+    def keys():
+        return [key.value for key in list(ConversionMethod)]
 
 
 class WebmConverter(dl.BaseServiceRunner):
@@ -26,8 +32,13 @@ class WebmConverter(dl.BaseServiceRunner):
 
     """
 
-    def __init__(self, method=ConversionMethod.OPENCV):
+    def __init__(self, method: ConversionMethod = ConversionMethod.OPENCV):
         self.video_handler = VideoPreprocess()
+
+        valid_methods = ConversionMethod.keys()
+        if method is not None and method not in valid_methods:
+            raise Exception('Illegal method: {}. Please select from: {}'.format(method, valid_methods))
+
         self.method = method
         if method == ConversionMethod.OPENCV:
             cmd_build_file = ['chmod', '777', 'opencv_converter']
@@ -103,6 +114,8 @@ class WebmConverter(dl.BaseServiceRunner):
                         output_filepath,
                         fps,
                         nb_frames=None,
+                        start_time=None,
+                        duration=None,
                         progress=None,
                         item=None,
                         workdir=None,
@@ -117,33 +130,57 @@ class WebmConverter(dl.BaseServiceRunner):
                 output_filepath=output_filepath,
                 fps=fps,
                 nb_frames=nb_frames,
-                progress=progress
+                progress=progress,
+                start_time=None,
+                duration=None,
             )
         else:
+            if start_time is not None or duration is not None:
+                raise NotImplemented('OpenCV conversion for trimming is not implemented')
             # use opencv
             self._convert_to_webm_opencv(
                 item=item,
                 filepath=workdir,
                 nb_streams=nb_streams)
 
-    def _convert_to_webm_ffmpeg(self, input_filepath, output_filepath, fps, nb_frames=None, progress=None):
+    def _convert_to_webm_ffmpeg(self, input_filepath, output_filepath,
+                                fps, nb_frames=None,  start_time=None, duration=None, progress=None):
         """
         Convert the video use run a ffmpeg command
         """
-        cmds = [
-            'ffmpeg',
-            # To force the frame rate of the output file
-            '-r', str(fps),
-            # Item local path / stream
-            '-i', input_filepath,
-            # Overwrite output files without asking
-            '-y',
-            # Log level
-            '-v', 'info',
-            # Duplicate or drop input frames to achieve constant output frame rate fps.
-            '-max_muxing_queue_size', '9999',
-            output_filepath
-        ]
+        if start_time is not None and duration is not None:
+            cmds = [
+                'ffmpeg',
+                # To force the frame rate of the output file
+                '-r', str(fps),
+                # Item local path / stream
+                '-i', input_filepath,
+                # Overwrite output files without asking
+                '-y',
+                # start and duration for trimming
+                '-ss', str(start_time),
+                '-t', str(duration),
+                # Log level
+                '-v', 'info',
+                # Duplicate or drop input frames to achieve constant output frame rate fps.
+                '-max_muxing_queue_size', '9999',
+                output_filepath
+            ]
+        else:
+            cmds = [
+                'ffmpeg',
+                # To force the frame rate of the output file
+                '-r', str(fps),
+                # Item local path / stream
+                '-i', input_filepath,
+                # Overwrite output files without asking
+                '-y',
+                # Log level
+                '-v', 'info',
+                # Duplicate or drop input frames to achieve constant output frame rate fps.
+                '-max_muxing_queue_size', '9999',
+                output_filepath
+            ]
         self.video_handler.execute_cmd(cmd=cmds, nb_frames=nb_frames, progress=progress)
 
         return
