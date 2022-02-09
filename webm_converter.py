@@ -32,7 +32,7 @@ class WebmConverter(dl.BaseServiceRunner):
 
     """
 
-    def __init__(self, method: ConversionMethod = ConversionMethod.OPENCV):
+    def __init__(self, method: ConversionMethod = ConversionMethod.FFMPEG):
         self.video_handler = VideoPreprocess()
 
         valid_methods = ConversionMethod.keys()
