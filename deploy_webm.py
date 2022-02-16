@@ -34,30 +34,31 @@ package = project.packages.push(
             pod_type=dl.InstanceCatalog.REGULAR_M,
             runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:4',
             autoscaler=dl.KubernetesRabbitmqAutoscaler(
-                min_replicas=1,
-                max_replicas=100,
+                min_replicas=0,
+                max_replicas=10,
                 queue_length=2
             )).to_json()},
     codebase=dl.GitCodebase(git_url='https://github.com/dataloop-ai/webm_converter.git', git_tag='v1.0.0')
 )
 
-package = project.packages.get(package_name=package_name)
+# package = project.packages.get(package_name=package_name)
 
 ###########
 # service #
 ###########
-# deploy for new service creation
-service = package.services.deploy(
-    service_name=package_name,
-    execution_timeout=2 * 60 * 60,
-    module_name=module.name,
-)
-
-service = project.services.get(service_name=package.name.lower())
-
-if package.version != service.package_revision:
-    service.package_revision = package.version
-    service = service.update(True)
+# # no need to install the serive on DatasloopApps
+# # deploy for new service creation
+# service = package.services.deploy(
+#     service_name=package_name,
+#     execution_timeout=2 * 60 * 60,
+#     module_name=module.name,
+# )
+#
+# service = project.services.get(service_name=package.name.lower())
+#
+# if package.version != service.package_revision:
+#     service.package_revision = package.version
+#     service = service.update(True)
 
 #########################
 # new trigger creation #
@@ -69,40 +70,40 @@ if package.version != service.package_revision:
 # trigger = triggers.items[0]
 
 
-trigger = project.triggers.create(
-    name=package.name,
-    service_id=service.id,
-    execution_mode=dl.TriggerExecutionMode.ONCE,
-    resource='Item',
-    actions=['Updated'],
-    filters={
-        '$and': [
-            {
-                'metadata.system.mimetype': {
-                    '$eq': 'video*'
-                }
-            },
-            {
-                'metadata.system.size': {
-                    '$lt': 1073741824
-                }
-            },
-            {
-                'metadata.system.mimetype': {
-                    '$ne': 'video/webm'
-                }
-            },
-            {
-                "metadata.system.fps": {
-                    "$gt": 0
-                }
-            },
-            {
-                "hidden": False
-            },
-            {
-                "type": "file"
-            }
-        ]
-    }
-)
+# trigger = project.triggers.create(
+#     name=package.name,
+#     service_id=service.id,
+#     execution_mode=dl.TriggerExecutionMode.ONCE,
+#     resource='Item',
+#     actions=['Updated'],
+#     filters={
+#         '$and': [
+#             {
+#                 'metadata.system.mimetype': {
+#                     '$eq': 'video*'
+#                 }
+#             },
+#             {
+#                 'metadata.system.size': {
+#                     '$gt': 1073741823
+#                 }
+#             },
+#             {
+#                 'metadata.system.mimetype': {
+#                     '$ne': 'video/webm'
+#                 }
+#             },
+#             {
+#                 "metadata.system.fps": {
+#                     "$gt": 0
+#                 }
+#             },
+#             {
+#                 "hidden": False
+#             },
+#             {
+#                 "type": "file"
+#             }
+#         ]
+#     }
+# )

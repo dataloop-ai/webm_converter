@@ -1,15 +1,15 @@
-import csv
+import pandas as pd
+import dtlpy as dl
+
 import logging
-import os
 import shutil
 import time
-
-import dtlpy as dl
+import csv
+import os
+import io
 
 from video_preprocess import VideoPreprocess
 from webm_converter import ConversionMethod, WebmConverter
-
-# from video_utils import video_info_extractor, convert_to_webm_ffmpeg, ConversionMethod
 
 logging.basicConfig()
 logger = logging.getLogger(name=__name__)
@@ -101,7 +101,7 @@ class TrimsList:
     def __len__(self):
         return len(self.list)
 
-    def missing(self):
+    def not_existing_files(self):
         return [trim for trim in self.list if not trim.is_exist]
 
 
@@ -110,6 +110,7 @@ class TrimVideo(dl.BaseServiceRunner):
     Plugin runner class
 
     """
+
     def __init__(self):
         self.video_handler = VideoPreprocess()
 
@@ -136,6 +137,104 @@ class TrimVideo(dl.BaseServiceRunner):
 
         return fps, nb_frames
 
+    def trimming_results_report(self, item):
+        file_dir = item.metadata.get('system', dict()).get('trim', dict()).get('destinationPath', None)
+        if file_dir is None:
+            file_dir, ext = os.path.splitext(item.filename)
+
+        origin_fps = item.metadata.get('system', dict()).get('fps', None)
+        if not origin_fps:
+            origin_fps, _ = self.get_fps_and_nb_frames(item=item)
+        origin_file_name = item.name
+
+        trimmed_dataset_id = item.metadata.get('system', dict()).get('trim', dict()).get('destinationDatasetId', None)
+        expected_trim_files = item.metadata.get('system', dict()).get('trim', dict()).get('expectedTrimFiles', None)
+
+        if trimmed_dataset_id is None:
+            trimmed_dataset = item.dataset
+        else:
+            trimmed_dataset = item.project.datasets.get(dataset_id=trimmed_dataset_id)
+
+        filters = dl.Filters(field='dir', values=file_dir)
+        filters.add(field='metadata.system.mimetype', values="*video*")
+        filters.sort = {'name': dl.FILTERS_ORDERBY_DIRECTION_ASCENDING}
+        pages = trimmed_dataset.items.list(filters=filters)
+        print("Found {} files".format(pages.items_count))
+        results = dict()
+
+        trim_success = True if expected_trim_files == pages.items_count else False
+        for page in pages:
+            for trimmed_item in page:
+                system = trimmed_item.metadata.get('system', dict())
+                nb_frames = system.get('nb_frames', None)
+                if not nb_frames:
+                    nb_frames = system.get('ffmpeg', dict()).get('nb_read_frames', None)
+                    if nb_frames:
+                        nb_frames = int(nb_frames)
+                fps = system.get('fps', None)
+                if fps is None or nb_frames is None:
+                    fps, nb_frames = self.get_fps_and_nb_frames(item=item)
+
+                trim = system.get('trim', dict())
+                start_from = trim.get('startFrom', None)
+                end_on = trim.get('endOn', None)
+                origin_file_name = trim.get('originalVideo', "NA")
+                origin_file_id = trim.get('originalVideoId', "NA")
+                before_overlapping = trim.get('beforeOverlapping', 0)
+                after_overlapping = trim.get('afterOverlapping', "NA")
+                original_nb_frames = None
+                if start_from is not None and end_on is not None:
+                    original_nb_frames = end_on - start_from + 1
+
+                delta_nb_frames = None
+                if nb_frames is not None and original_nb_frames is not None:
+                    delta_nb_frames = original_nb_frames - nb_frames
+
+                if (fps != origin_fps) or delta_nb_frames or nb_frames is None:
+                    trim_success = False
+
+                results[trimmed_item.id] = {'Item Name': trimmed_item.name,
+                                            'Item Dir': trimmed_item.dir,
+                                            'Item ID': trimmed_item.id,
+                                            'FPS': fps,
+                                            'Origin FPS': origin_fps,
+                                            'Origin File Name': origin_file_name,
+                                            'Origin File Id': origin_file_id,
+                                            'NB Frames': nb_frames,
+                                            'Calculated NB Frame': original_nb_frames,
+                                            'Delta NB Frames': delta_nb_frames,
+                                            'Start From': start_from,
+                                            'End On': end_on,
+                                            'Before Overlapping': before_overlapping,
+                                            'After Overlapping': after_overlapping}
+
+        df = pd.DataFrame(list(results.values()),
+                          columns=['Item Name', 'Item Dir', 'Item ID',
+                                   'FPS', 'Origin FPS',
+                                   'Origin File Name', 'Origin File Id',
+                                   'NB Frames', 'Calculated NB Frame', 'Delta NB Frames',
+                                   'Start From', 'End On',
+                                   'Before Overlapping', 'After Overlapping'])
+
+        if trim_success and len(results):
+            csv_file_name = '{}_report.csv'.format(origin_file_name)
+        else:
+            csv_file_name = '{}_report_error.csv'.format(origin_file_name)
+
+        csv_bin = io.BytesIO()
+        csv_bin.write(df.to_csv(index=False, line_terminator='\n').encode())
+        trimmed_dataset.items.upload(local_path=csv_bin,
+                                     remote_path=file_dir,
+                                     remote_name=csv_file_name,
+                                     overwrite=True)
+
+        if origin_file_name == item.name:
+            item.metadata['system']['trim']['report'] = "Succeeded" if trim_success else "Failed"
+            item.update(system_metadata=True)
+
+        if trim_success:
+            return item
+
     @staticmethod
     def write_trim_list(output_csv_file, trims_list: TrimsList):
         with open(output_csv_file, 'wt') as file:
@@ -147,12 +246,12 @@ class TrimVideo(dl.BaseServiceRunner):
                 "Start Frame", "Start Timecode", "Start Time (seconds)",
                 "End Frame", "End Timecode", "End Time (seconds)",
                 "Length (frames)", "Length (timecode)", "Length (seconds)"])
-            for i, single_trim in enumerate(trims_list):
+            for i, single_trim in enumerate(trims_list.list):
                 csv_writer.writerow('{},{},{},{:.3f},{},{},{:.3f},{},{},{:.3f}'.format(i + 1,
-                                                                                       single_trim.start.nb_frames,
+                                                                                       single_trim.start.frame,
                                                                                        single_trim.start.timestamp,
                                                                                        single_trim.start.seconds,
-                                                                                       single_trim.end.nb_frames,
+                                                                                       single_trim.end.frame,
                                                                                        single_trim.end.timestamp,
                                                                                        single_trim.end.seconds,
                                                                                        single_trim.nb_frames,
@@ -167,16 +266,18 @@ class TrimVideo(dl.BaseServiceRunner):
         video_handler = WebmConverter(method=trims_list.method)
 
         logger.info('{} Going to trim {} files out from {}'.format(log_header,
-                                                                   len(trims_list.missing()),
+                                                                   len(trims_list.not_existing_files()),
                                                                    len(trims_list)))
         if not len(trims_list):
             return None
 
         try:
             tic = time.time()
-            for single_trim in trims_list.missing():
+            for single_trim in trims_list.not_existing_files():
                 for retry in range(retries):
                     trim_filepath = os.path.join(trims_list.trims_dir, single_trim.name)
+                    logger.info("{} {} trim {!r} is starting, retry {}".format(
+                        log_header, trims_list.method, single_trim.name, retry + 1))
                     if trims_list.method == ConversionMethod.FFMPEG:
                         video_handler.convert_to_webm(input_filepath=trims_list.orig_filepath,
                                                       output_filepath=trim_filepath,
@@ -189,14 +290,14 @@ class TrimVideo(dl.BaseServiceRunner):
 
                     if nb_frames == single_trim.nb_frames:
                         break
-                    logger.info("{} ffmpeg trim {!r} has {} NB while calculated video has {} NB retry {}".format(
-                        log_header, single_trim.name, nb_frames, single_trim.nb_frames, retry + 1))
+                    logger.info("{} {} trim {!r} has {} NB while calculated video has {} NB retry {}".format(
+                        log_header, trims_list.method, single_trim.name, nb_frames, single_trim.nb_frames, retry + 1))
                     time.sleep(5)
                 if progress:
                     # 96 is  the % between 3 -> 99 used progress for this part
                     progress.update(
-                        status='Trimming {}/{}'.format(single_trim.start.nb_frames, trims_list.origin_nb_frames),
-                        progress=round(single_trim.start.nb_frames / trims_list.origin_nb_frames * 96))
+                        status='Trimming {}/{}'.format(single_trim.start.frame, trims_list.origin_nb_frames),
+                        progress=round(single_trim.start.frame / trims_list.origin_nb_frames * 96))
             duration = time.time() - tic
             logger.info(
                 '{header} converted with {method}. conversion took: {dur}[s]'.format(
@@ -230,7 +331,6 @@ class TrimVideo(dl.BaseServiceRunner):
         trim_num = 0
         filters = dl.Filters(field='dir', values=remote_trims_path)
         items = [item for item in destination_dataset.items.list(filters=filters).all()]
-        # items = destination_dataset.items.list(filters=filters).all()
 
         while start_from < nb_frames:
             trim_file_name = '{}-trim-{}{}'.format(orig_file_name, str(trim_num).zfill(pad), ext)
@@ -272,6 +372,24 @@ class TrimVideo(dl.BaseServiceRunner):
             trim_num += 1
 
         return trims_list
+
+    def video_trimming_by_seconds(self, item: dl.Item, progress=None,
+                                  number_of_seconds=None, before_overlapping=0, after_overlapping=0,
+                                  destination_dataset_name=None, main_dir='/'):
+        return self.video_trimming(item=item, is_sec=True,
+                                   number_of_frames=number_of_seconds,
+                                   before_overlapping=before_overlapping, after_overlapping=after_overlapping,
+                                   destination_dataset_name=destination_dataset_name, main_dir=main_dir,
+                                   progress=progress)
+
+    def video_trimming_by_frames(self, item: dl.Item, progress=None,
+                                 number_of_frames=None, before_overlapping=0, after_overlapping=0,
+                                 destination_dataset_name=None, main_dir='/'):
+        return self.video_trimming(item=item, is_sec=False,
+                                   number_of_frames=number_of_frames,
+                                   before_overlapping=before_overlapping, after_overlapping=after_overlapping,
+                                   destination_dataset_name=destination_dataset_name, main_dir=main_dir,
+                                   progress=progress)
 
     def video_trimming(self, item: dl.Item, progress=None,
                        is_sec=False, number_of_frames=None, before_overlapping=0, after_overlapping=0,
@@ -341,7 +459,10 @@ class TrimVideo(dl.BaseServiceRunner):
             # remote_trims_path = main_dir + remote_trims_path if main_dir and main_dir != "" else remote_trims_path
 
             if main_dir and main_dir != "":
+                if main_dir[0] != '/':
+                    main_dir = '/' + main_dir
                 remote_trims_path = main_dir + item.dir.rstrip('/') + "/" + orig_file_name
+
             else:
                 remote_trims_path = item.dir.rstrip('/') + "/" + orig_file_name
 
@@ -422,10 +543,16 @@ class TrimVideo(dl.BaseServiceRunner):
                 shutil.rmtree(workdir)
 
 
-if __name__ == "__main__":
+def test():
     trim_runner = TrimVideo()
-    trim_runner.video_trimming(item=dl.items.get(item_id='61ed6a946c58a6684ea87402'),
-                               progress=None,
-                               number_of_frames=50,
-                               before_overlapping=5,
-                               main_dir='results_trim_videos')
+    item = dl.items.get(item_id='61ed6a946c58a6684ea87402')
+    trim_runner.video_trimming_by_frames(item=item,
+                                         number_of_frames=50,
+                                         before_overlapping=5,
+                                         main_dir='results_trim_videos')
+
+    trim_runner.trimming_results_report(item=item)
+
+
+if __name__ == "__main__":
+    test()

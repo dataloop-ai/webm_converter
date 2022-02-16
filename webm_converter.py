@@ -131,8 +131,8 @@ class WebmConverter(dl.BaseServiceRunner):
                 fps=fps,
                 nb_frames=nb_frames,
                 progress=progress,
-                start_time=None,
-                duration=None,
+                start_time=start_time,
+                duration=duration,
             )
         else:
             if start_time is not None or duration is not None:
@@ -148,42 +148,27 @@ class WebmConverter(dl.BaseServiceRunner):
         """
         Convert the video use run a ffmpeg command
         """
-        if start_time is not None and duration is not None:
-            cmds = [
-                'ffmpeg',
-                # To force the frame rate of the output file
-                '-r', str(fps),
-                # Item local path / stream
-                '-i', input_filepath,
-                # Overwrite output files without asking
-                '-y',
-                # start and duration for trimming
-                '-ss', str(start_time),
-                '-t', str(duration),
-                # Log level
-                '-v', 'info',
-                # Duplicate or drop input frames to achieve constant output frame rate fps.
-                '-max_muxing_queue_size', '9999',
-                output_filepath
-            ]
-        else:
-            cmds = [
-                'ffmpeg',
-                # To force the frame rate of the output file
-                '-r', str(fps),
-                # Item local path / stream
-                '-i', input_filepath,
-                # Overwrite output files without asking
-                '-y',
-                # Log level
-                '-v', 'info',
-                # Duplicate or drop input frames to achieve constant output frame rate fps.
-                '-max_muxing_queue_size', '9999',
-                output_filepath
-            ]
-        self.video_handler.execute_cmd(cmd=cmds, nb_frames=nb_frames, progress=progress)
 
-        return
+        cmds = [
+            'ffmpeg',
+            # To force the frame rate of the output file
+            '-r', str(fps),
+            # Item local path / stream
+            '-i', input_filepath,
+            # Overwrite output files without asking
+            '-y',
+            # Log level
+            '-v', 'info',
+            # Duplicate or drop input frames to achieve constant output frame rate fps.
+            '-max_muxing_queue_size', '9999'
+        ]
+        if start_time is not None and duration is not None:
+            cmds += [                # start and duration for trimming
+                '-ss', str(start_time),
+                '-t', str(duration)
+            ]
+        cmds.append(output_filepath)
+        return self.video_handler.execute_cmd(cmd=cmds, nb_frames=nb_frames, progress=progress)
 
     @staticmethod
     def _upload_webm_item(item, webm_file_path):
