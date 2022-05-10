@@ -16,6 +16,11 @@ def get_webm_modules() -> List[dl.PackageModule]:
                     outputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
                     name='run',
                     description='Webm converter'),
+                dl.PackageFunction(
+                    inputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
+                    outputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
+                    name='convert_only',
+                    description='Webm converter')
             ]
         )
     ]
