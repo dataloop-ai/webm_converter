@@ -412,6 +412,72 @@ class WebmConverter(dl.BaseServiceRunner):
             summary=summary
         )
 
+    def convert_only(self, item: dl.Item, progress=None):
+        ##################
+        # Converter video to webm and upload it to the dame dataset #
+        ##################
+        workdir = item.id
+        try:
+            log_header = '[preprocess][on_create][{item_id}][{func}]'.format(item_id=item.id, func='convert_only')
+            webm_filepath = os.path.join(workdir, '{}.webm'.format( os.path.splitext(item.name)[0]))
+            orig_filepath = os.path.join(workdir, item.name)
+            orig_filepath = item.download(local_path=orig_filepath)
+
+            # get the item metadata if it in the item else get it from run ffmpeg command
+            if 'ffmpeg' not in item.metadata['system']:
+                orig_metadata = self.video_handler.metadata_extractor_from_ffmpeg(stream=orig_filepath,
+                                                                                  with_headers=False)
+            else:
+                orig_metadata = {
+                    'ffmpeg': item.metadata['system']['ffmpeg'],
+                    'start_time': item.metadata['startTime'],
+                    'height': item.height,
+                    'width': item.width,
+                    'fps': item.metadata['fps'],
+                }
+
+                if item.metadata['system'].get('duration', None) is not None:
+                    orig_metadata['duration'] = float(item.metadata['system']['duration'])
+
+                if item.metadata['system']['ffmpeg'].get('nb_read_frames', None) is not None:
+                    orig_metadata['nb_read_frames'] = int(item.metadata['system']['ffmpeg']['nb_read_frames'])
+
+                if item.metadata['system']['ffmpeg'].get('nb_frames', None) is not None:
+                    orig_metadata['nb_frames'] = int(item.metadata['system']['ffmpeg']['nb_frames'])
+
+            tic = time.time()
+
+            # convert the video to webm
+            self.convert_to_webm(
+                input_filepath=orig_filepath,
+                output_filepath=webm_filepath,
+                fps=orig_metadata['fps'],
+                nb_frames=orig_metadata.get('nb_read_frames', None),
+                progress=progress,
+                item=item,
+                workdir=workdir,
+                nb_streams=orig_metadata.get('nb_streams', 1),
+            )
+
+            duration = time.time() - tic
+
+            logger.info(
+                '{header} converted with {method}. conversion took: {dur}[s]'.format(
+                    header=log_header,
+                    method=self.method,
+                    dur=duration
+                )
+            )
+
+            webm_item = item.dataset.items.upload(local_path=webm_filepath, remote_path=item.dir, overwrite=True)
+            return webm_item
+
+        except Exception as e:
+            raise ValueError('[webm-converter] failed\n error: {}'.format(e))
+        finally:
+            if workdir is not None and os.path.isdir(workdir):
+                shutil.rmtree(workdir)
+
     def run(self, item: dl.Item, progress=None):
         ##################
         # webm converter #
@@ -442,3 +508,4 @@ class WebmConverter(dl.BaseServiceRunner):
         finally:
             if workdir is not None and os.path.isdir(workdir):
                 shutil.rmtree(workdir)
+
