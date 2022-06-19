@@ -1,11 +1,10 @@
+import math
+
+from mail_mandler import MailHandler
 import dtlpy as dl
 import subprocess
 import logging
-import shutil
 import json
-import cv2
-import os
-import time
 
 logger = logging.getLogger(__name__)
 NUM_TRIES_COMMAND = 1
@@ -13,6 +12,9 @@ NUM_TRIES_FUNC = 3
 
 
 class VideoPreprocess(dl.BaseServiceRunner):
+
+    def __init__(self):
+        self.mail_handler = MailHandler(service_name='VideoPreprocess')
 
     @staticmethod
     def execute_cmd(cmd, progress: dl.Progress = None, nb_frames=None):
@@ -132,7 +134,7 @@ class VideoPreprocess(dl.BaseServiceRunner):
             'height': height,
             'width': width,
             'fps': fps,
-            'duration': float(duration) if duration else None,
+            'duration': float(duration) if duration is not None else None,
             'nb_read_frames': nb_read_frames,
             'nb_streams': nb_streams
         }
@@ -140,25 +142,35 @@ class VideoPreprocess(dl.BaseServiceRunner):
             res_dict['nb_frames'] = nb_frames
         return res_dict
 
-    @staticmethod
-    def metadata_extractor_from_opencv(filepath):
-        cap = cv2.VideoCapture(filepath)
-        height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
-        fps = cap.get(cv2.CAP_PROP_FPS)
-        nb_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
-        duration = nb_frames / fps
+    def validate_video(self, fps, duration, r_frames, default_start_time=0, prefix_check='web'):
+        if fps and duration and r_frames:
+            exp_frames_count = fps * float(int((duration - default_start_time) * 100)) / 100
+            rounded = round(exp_frames_count)
+            rounded_up = (math.floor(exp_frames_count) + 1)
 
+            if rounded == rounded_up or rounded == r_frames:
+                exp_frames = rounded
+            else:
+                exp_frames = rounded_up
+
+            if exp_frames != r_frames and abs(exp_frames_count - r_frames) > 0.5:
+                return False, exp_frames, self.error_dict(err_type=prefix_check + 'ExpectedFrames',
+                                                          err_message='Frames is not equal to FPS * Duration',
+                                                          err_value=abs(exp_frames_count - r_frames),
+                                                          service_name='VideoPreprocess')
+            return True, exp_frames, {}
+        else:
+            return True, 0, {}
+
+    def error_dict(self, err_type, err_message, err_value, service_name):
         return {
-            'height': height,
-            'width': width,
-            'fps': fps,
-            'nb_frames': nb_frames,
-            'duration': duration
+            'type': err_type,
+            'message': err_message,
+            'value': err_value,
+            'service': service_name
         }
 
-    @staticmethod
-    def _metadata_extractor_write_to_item(item: dl.Item, metadata):
+    def _metadata_extractor_write_to_item(self, item: dl.Item, metadata):
         # add data
         if 'system' not in item.metadata:
             item.metadata['system'] = dict()
@@ -177,33 +189,77 @@ class VideoPreprocess(dl.BaseServiceRunner):
             # backward compatibility
             item.metadata['fps'] = item.metadata['system']['fps']
         if 'duration' in metadata:
-            item.metadata['system']['duration'] = metadata['duration']  # will be verified after webm_converter conversion
+            item.metadata['system']['duration'] = metadata['duration']  # will be verified after webm conversion
         if 'nb_frames' in metadata:
-            item.metadata['system']['nb_frames'] = metadata['nb_frames']  # will be verified after webm_converter conversion
+            item.metadata['system']['nb_frames'] = metadata['nb_frames']  # will be verified after webm conversion
         if 'nb_streams' in metadata:
-            item.metadata['system']['nb_streams'] = metadata['nb_streams']  # will be verified after webm_converter conversion
+            item.metadata['system']['nb_streams'] = metadata['nb_streams']  # will be verified after webm conversion
+
+        r_frames = metadata.get('nb_read_frames', None)
+        if r_frames is None:
+            r_frames = metadata.get('nb_frames', None)
+
+        validate, exp_frames, validate_msg = self.validate_video(fps=metadata.get('fps', None),
+                                                                 duration=metadata.get('duration', None),
+                                                                 r_frames=r_frames,
+                                                                 default_start_time=metadata.get('start_time', None),
+                                                                 prefix_check='orig')
+        if not validate:
+            self.update_item_errors(item=item, error_dicts=validate_msg)
         return item.update(system_metadata=True)
 
-    def metadata_extractor(self, item, workdir):
+    def update_item_errors(self, item: dl.Item, error_dicts):
+        if not isinstance(error_dicts, list):
+            error_dicts = [error_dicts]
+        if 'system' not in item.metadata:
+            item.metadata['system'] = {}
+        if 'errors' not in item.metadata['system']:
+            item.metadata['system']['errors'] = []
+        for err_dict in error_dicts:
+            add_err = True
+            for err_index in range(len(item.metadata['system']['errors'])):
+                if item.metadata['system']['errors'][err_index]['type'] == err_dict['type']:
+                    item.metadata['system']['errors'][err_index] = err_dict
+                    add_err = False
+            if add_err:
+                item.metadata['system']['errors'].append(err_dict)
+        item.update(True)
+
+    def metadata_extractor(self, item):
         """
         Extract ffmpeg metadata and write it to item
 
         :param item: dl.Item
-        :param workdir: str
         :return:
         """
         exception = ''
         for _ in range(NUM_TRIES_FUNC):
             try:
+                with_headers = True
                 item_stream = item.stream
-                metadata = self.metadata_extractor_from_ffmpeg(stream=item_stream, with_headers=True)
+                try:
+                    item_stream = item.system['shebang']['linkInfo']['ref']
+                    with_headers = False
+                except KeyError:
+                    # item in not link
+                    pass
+                metadata = self.metadata_extractor_from_ffmpeg(stream=item_stream, with_headers=with_headers)
                 item = self._metadata_extractor_write_to_item(item=item, metadata=metadata)
+                if 'errors' in item.metadata['system'] and len(item.metadata['system']['errors']) > 0:
+                    continue
 
-                missing = [key for key, val in metadata.items() if val is None]
+                missing = [key for key, val in metadata.items() if not val and key != 'start_time']
                 if len(missing) != 0:
-                    raise Exception(['missing metadata values for item: {}'.format(item.id), missing])
+                    self.mail_handler.send_alert(
+                        item=item,
+                        msg=['missing metadata values for item: {}'.format(item.id), missing]
+                    )
+                    raise Exception('missing metadata values for item: {}'.format(item.id), missing)
                 return item
             except Exception as e:
                 exception = e
                 continue
-        raise Exception(exception)
+        if exception != '':
+            raise Exception(exception)
+        else:
+            return item

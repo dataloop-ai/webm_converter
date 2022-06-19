@@ -31,10 +31,10 @@ package = project.packages.push(
         'runtime': dl.KubernetesRuntime(
             concurrency=1,
             pod_type=dl.InstanceCatalog.REGULAR_M,
-            runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:4',
+            runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:6',
             autoscaler=dl.KubernetesRabbitmqAutoscaler(
                 min_replicas=1,
-                max_replicas=100,
+                max_replicas=10,
                 queue_length=2
             )).to_json()},
     codebase=dl.GitCodebase(git_url='https://github.com/dataloop-ai/webm_converter.git', git_tag='main')
