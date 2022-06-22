@@ -25,7 +25,7 @@ class WebmConverter(dl.BaseServiceRunner):
 
     """
 
-    def __init__(self, method=ConversionMethod.OPENCV):
+    def __init__(self, method=ConversionMethod.FFMPEG):
         self.video_handler = VideoPreprocess()
         self.mail_handler = MailHandler(service_name='WebmConverter')
         self.method = method
