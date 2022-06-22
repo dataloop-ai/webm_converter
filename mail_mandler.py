@@ -8,14 +8,6 @@ class MailHandler(dl.BaseServiceRunner):
     def __init__(self, service_name: str):
         self.service_name = service_name
 
-    @property
-    def is_prod(self):
-        return dl.environment() == 'https://gate.dataloop.ai/api/v1'
-
-    @property
-    def enabled(self):
-        return self.is_prod or True
-
     def send_mail(self, email: str, item: dl.Item, msg: str):
         try:
             # noinspection PyProtectedMember
@@ -35,12 +27,11 @@ class MailHandler(dl.BaseServiceRunner):
 
     def send_alert(self, item: dl.Item, msg):
         try:
-            if self.enabled:
-                item.metadata['system']['{}_fail'.format(self.service_name)] = msg
-                item.update(system_metadata=True)
-                for email in [
-                    item.creator
-                ]:
-                    self.send_mail(email=email, item=item, msg=msg)
+            item.metadata['system']['{}_fail'.format(self.service_name)] = msg
+            item.update(system_metadata=True)
+            for email in [
+                item.creator
+            ]:
+                self.send_mail(email=email, item=item, msg=msg)
         except:
             logger.exception('Failed to send mail')
