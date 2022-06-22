@@ -308,7 +308,7 @@ class WebmConverter(dl.BaseServiceRunner):
         else:
             orig_metadata = {
                 'ffmpeg': item.metadata['system']['ffmpeg'],
-                'start_time': item.metadata['startTime'],
+                'start_time': item.metadata.get('startTime', 0),
                 'height': item.height,
                 'width': item.width,
                 'fps': item.metadata['fps'],

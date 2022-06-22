@@ -6,8 +6,6 @@ logger = logging.getLogger(__name__)
 
 class MailHandler(dl.BaseServiceRunner):
     def __init__(self, service_name: str):
-        project = dl.projects.get(project_name='DataloopTasks')
-        self.dataloop_tasks_id = project.id
         self.service_name = service_name
 
     @property
@@ -41,10 +39,6 @@ class MailHandler(dl.BaseServiceRunner):
                 item.metadata['system']['{}_fail'.format(self.service_name)] = msg
                 item.update(system_metadata=True)
                 for email in [
-                    'mohamed@dataloop.ai',
-                    'koby@dataloop.ai',
-                    'lior@dataloop.ai',
-                    'aharon@dataloop.ai',
                     item.creator
                 ]:
                     self.send_mail(email=email, item=item, msg=msg)

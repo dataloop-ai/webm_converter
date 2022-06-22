@@ -103,7 +103,7 @@ class VideoPreprocess(dl.BaseServiceRunner):
             raise ValueError('missing video stream for: {}'.format(stream))
 
         start_time = video_stream.get('start_time', None)
-        start_time = eval(start_time) if start_time is not None else None
+        start_time = eval(start_time) if start_time is not None else 0
 
         height = video_stream.get('height', None)
         width = video_stream.get('width', None)
@@ -144,6 +144,8 @@ class VideoPreprocess(dl.BaseServiceRunner):
 
     def validate_video(self, fps, duration, r_frames, default_start_time=0, prefix_check='web'):
         if fps and duration and r_frames:
+            if default_start_time is None:
+                default_start_time = 0
             exp_frames_count = fps * float(int((duration - default_start_time) * 100)) / 100
             rounded = round(exp_frames_count)
             rounded_up = (math.floor(exp_frames_count) + 1)
