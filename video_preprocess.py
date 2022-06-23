@@ -15,6 +15,15 @@ class VideoPreprocess(dl.BaseServiceRunner):
 
     @staticmethod
     def execute_cmd(cmd, progress: dl.Progress = None, nb_frames=None):
+        """
+        execute bash command
+
+        :param list cmd: list of the bash command
+        :param dl.Progress progress: progress object, to follow thw work Progress
+        :param int nb_frames: number of frames
+
+        :return: the command output
+        """
         exception = ''
         progress_conv = 10
         for _ in range(NUM_TRIES_COMMAND):
@@ -43,7 +52,14 @@ class VideoPreprocess(dl.BaseServiceRunner):
         raise Exception(exception)
 
     def _extract_metadata(self, item_stream, with_headers=False):
-        # why -b:v & -crf ?
+        """
+        build and run the command to extract metadata
+
+        :param str item_stream: item stream
+        :param bool with_headers: url item or regular
+
+        :return: the command output
+        """
         if with_headers:
             cmd = ['ffprobe',
                    '-select_streams',
@@ -85,7 +101,14 @@ class VideoPreprocess(dl.BaseServiceRunner):
             return None
 
     def metadata_extractor_from_ffmpeg(self, stream, with_headers):
+        """
+        get the item metadata from ffmpeg
 
+        :param str stream: item stream
+        :param bool with_headers: url item or regular
+
+        :return: dict of the metadata
+        """
         outs = self._extract_metadata(
             item_stream=stream,
             with_headers=with_headers
@@ -156,12 +179,15 @@ class VideoPreprocess(dl.BaseServiceRunner):
                 return False, exp_frames, self.error_dict(err_type=prefix_check + 'ExpectedFrames',
                                                           err_message='Frames is not equal to FPS * Duration',
                                                           err_value=abs(exp_frames_count - r_frames),
-                                                          service_name='VideoPreprocess')
+                                                          service_name='WebmConverter')
             return True, exp_frames, {}
         else:
             return True, 0, {}
 
     def error_dict(self, err_type, err_message, err_value, service_name):
+        """
+        build the error dict format
+        """
         return {
             'type': err_type,
             'message': err_message,
@@ -169,45 +195,13 @@ class VideoPreprocess(dl.BaseServiceRunner):
             'service': service_name
         }
 
-    def _metadata_extractor_write_to_item(self, item: dl.Item, metadata):
-        # add data
-        if 'system' not in item.metadata:
-            item.metadata['system'] = dict()
-        if 'ffmpeg' in metadata:
-            item.metadata['system']['ffmpeg'] = metadata['ffmpeg']
-        if 'start_time' in metadata:
-            item.metadata['system']['startTime'] = metadata['start_time']
-            # backward compatibility
-            item.metadata['startTime'] = item.metadata['system']['startTime']
-        if 'height' in metadata:
-            item.metadata['system']['height'] = metadata['height']
-        if 'width' in metadata:
-            item.metadata['system']['width'] = metadata['width']
-        if 'fps' in metadata:
-            item.metadata['system']['fps'] = metadata['fps']
-            # backward compatibility
-            item.metadata['fps'] = item.metadata['system']['fps']
-        if 'duration' in metadata:
-            item.metadata['system']['duration'] = metadata['duration']  # will be verified after webm conversion
-        if 'nb_frames' in metadata:
-            item.metadata['system']['nb_frames'] = metadata['nb_frames']  # will be verified after webm conversion
-        if 'nb_streams' in metadata:
-            item.metadata['system']['nb_streams'] = metadata['nb_streams']  # will be verified after webm conversion
-
-        r_frames = metadata.get('nb_read_frames', None)
-        if r_frames is None:
-            r_frames = metadata.get('nb_frames', None)
-
-        validate, exp_frames, validate_msg = self.validate_video(fps=metadata.get('fps', None),
-                                                                 duration=metadata.get('duration', None),
-                                                                 r_frames=r_frames,
-                                                                 default_start_time=metadata.get('start_time', None),
-                                                                 prefix_check='orig')
-        if not validate:
-            self.update_item_errors(item=item, error_dicts=validate_msg)
-        return item.update(system_metadata=True)
-
     def update_item_errors(self, item: dl.Item, error_dicts):
+        """
+        update the item metadata with the relevant errors
+
+        :param dl.item item: the item object of the file
+        :param list error_dicts: list of the errors
+        """
         if not isinstance(error_dicts, list):
             error_dicts = [error_dicts]
         if 'system' not in item.metadata:
@@ -223,42 +217,3 @@ class VideoPreprocess(dl.BaseServiceRunner):
             if add_err:
                 item.metadata['system']['errors'].append(err_dict)
         item.update(True)
-
-    def metadata_extractor(self, item):
-        """
-        Extract ffmpeg metadata and write it to item
-
-        :param item: dl.Item
-        :return:
-        """
-        exception = ''
-        for _ in range(NUM_TRIES_FUNC):
-            try:
-                with_headers = True
-                item_stream = item.stream
-                try:
-                    item_stream = item.system['shebang']['linkInfo']['ref']
-                    with_headers = False
-                except KeyError:
-                    # item in not link
-                    pass
-                metadata = self.metadata_extractor_from_ffmpeg(stream=item_stream, with_headers=with_headers)
-                item = self._metadata_extractor_write_to_item(item=item, metadata=metadata)
-                if 'errors' in item.metadata['system'] and len(item.metadata['system']['errors']) > 0:
-                    continue
-
-                missing = [key for key, val in metadata.items() if not val and key != 'start_time']
-                if len(missing) != 0:
-                    self.mail_handler.send_alert(
-                        item=item,
-                        msg=['missing metadata values for item: {}'.format(item.id), missing]
-                    )
-                    raise Exception('missing metadata values for item: {}'.format(item.id), missing)
-                return item
-            except Exception as e:
-                exception = e
-                continue
-        if exception != '':
-            raise Exception(exception)
-        else:
-            return item
