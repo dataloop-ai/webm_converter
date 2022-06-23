@@ -15,7 +15,7 @@ def get_webm_modules() -> List[dl.PackageModule]:
                     inputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
                     outputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
                     name='run',
-                    description='Webm converter'),
+                    description='Run Webm converter on input item, except method as param, possible values: ffmpeg, opencv. default to ffmpeg'),
             ]
         )
     ]

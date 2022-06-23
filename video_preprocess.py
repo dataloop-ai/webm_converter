@@ -13,9 +13,6 @@ NUM_TRIES_FUNC = 3
 
 class VideoPreprocess(dl.BaseServiceRunner):
 
-    def __init__(self):
-        self.mail_handler = MailHandler(service_name='VideoPreprocess')
-
     @staticmethod
     def execute_cmd(cmd, progress: dl.Progress = None, nb_frames=None):
         exception = ''

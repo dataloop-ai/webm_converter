@@ -10,7 +10,6 @@ class MailHandler(dl.BaseServiceRunner):
 
     def send_mail(self, email: str, item: dl.Item, msg: str):
         try:
-            # noinspection PyProtectedMember
             dl.projects._send_mail(
                 project_id=None,
                 send_to=email,

@@ -11,7 +11,7 @@ from mail_mandler import MailHandler
 from video_preprocess import VideoPreprocess
 
 logger = logging.getLogger(__name__)
-NUM_TRIES = 2
+NUM_RETRIES = 2
 
 
 class ConversionMethod:
@@ -397,7 +397,7 @@ class WebmConverter(dl.BaseServiceRunner):
         msg = ''
         self.video_handler._clean_item(item=item, service_name='WebmConverter')
         try:
-            for _ in range(NUM_TRIES):
+            for _ in range(NUM_RETRIES):
                 try:
                     workdir = item.id
                     os.makedirs(workdir, exist_ok=True)
