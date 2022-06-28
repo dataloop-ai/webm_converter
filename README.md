@@ -1,9 +1,9 @@
 # WEBM Converters
 
-This is Dataloop's App that converts a video to a webm format.   
+This is Dataloop's App that converts a video to a WEBM format.   
 
-What Is webm?:  
-WebM is an open, royalty-free, media file format designed for the web.
+What is WEBM?:  
+WEBM is an open, royalty-free, media file format designed for the web.
 
 ## How Does It Work?
 
@@ -16,9 +16,9 @@ The base class has the following methods:
 * verify_webm_conversion
 * validate_video
 
-The user has to choose the converter method (opencv/ffmpeg)  
-The function run starts by downloading the file and sending it to the converter function 
-thIS convertS the file and saveS it in the working directory. 
+The user has to choose the converter method (opencv/ffmpeg).  
+The function run starts by downloading the file and sending it to the converter function. 
+This converts the file and saves it in the working directory. 
 After that, it checks that the video is valid. If it is not valid, it will add info to the metadata
 and at the end upload the file to the platform.
 

@@ -1,8 +1,6 @@
 import dtlpy as dl
 import os
 
-from modules_definition import get_webm_modules
-
 package_name = 'custom-webm-converter'
 project_name = 'projectName'
 
@@ -12,19 +10,33 @@ project = dl.projects.get(project_name=project_name)
 #   package   #
 ###############
 
-module = get_webm_modules()[0]
+module = [
+    dl.PackageModule(
+        name='webm_module',
+        class_name='WebmConverter',
+        entry_point='webm_converter.py',
+        init_inputs=[dl.FunctionIO(type=dl.PackageInputType.STRING, name="method")],
+        functions=[
+            dl.PackageFunction(
+                inputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
+                outputs=[dl.FunctionIO(type=dl.PackageInputType.ITEM, name="item")],
+                name='run',
+                description='Run Webm converter on input item, except method as param, possible values: ffmpeg, opencv. default to ffmpeg'),
+        ]
+    )
+]
 
 # deploy the package using your local source code
 # package = project.packages.push(
 #     package_name=package_name,
-#     modules=[module],
+#     modules=module,
 #     src_path=os.getcwd()
 # )
 
 # deploy the package using our GIT repo
 package = project.packages.push(
     package_name=package_name,
-    modules=[module],
+    modules=module,
     service_config={
         'runtime': dl.KubernetesRuntime(
             concurrency=1,
@@ -47,7 +59,7 @@ package = project.packages.get(package_name=package_name)
 service = package.services.deploy(
     service_name=package_name,
     execution_timeout=2 * 60 * 60,
-    module_name=module.name,
+    module_name=module[0].name,
 )
 
 service = project.services.get(service_name=package.name.lower())

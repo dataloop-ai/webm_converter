@@ -7,8 +7,8 @@ import shutil
 import time
 import os
 
-from mail_mandler import MailHandler
-from video_preprocess import VideoPreprocess
+from mail_handler import MailHandler
+import video_utilities
 
 logger = logging.getLogger(__name__)
 NUM_RETRIES = 2
@@ -26,14 +26,13 @@ class WebmConverter(dl.BaseServiceRunner):
     """
 
     def __init__(self, method=ConversionMethod.FFMPEG):
-        self.video_handler = VideoPreprocess()
         self.mail_handler = MailHandler(service_name='WebmConverter')
         self.method = method
         if method == ConversionMethod.OPENCV:
-            cmd_build_file = ['chmod', '777', 'opencv_converter4']
-            self.video_handler.execute_cmd(cmd=cmd_build_file)
+            cmd_build_file = ['chmod', '777', 'opencv4_converter']
+            video_utilities.execute_cmd(cmd=cmd_build_file)
 
-    def _convert_to_webm_opencv(self, item, dir_path, nb_streams):
+    def convert_to_webm_opencv(self, item, dir_path, nb_streams):
         """
         Convert and Save the item file in webm format by opencv
 
@@ -50,11 +49,11 @@ class WebmConverter(dl.BaseServiceRunner):
             os.remove(webm_video)
 
         cmd = [
-            './opencv_converter4',
+            './opencv4_converter',
             input_file_path,
             webm_video
         ]
-        self.video_handler.execute_cmd(cmd=cmd)
+        video_utilities.execute_cmd(cmd=cmd)
 
         if nb_streams == 2:
             have_audio = True
@@ -71,7 +70,7 @@ class WebmConverter(dl.BaseServiceRunner):
                     '-y',
                     webm_audio
                 ]
-                self.video_handler.execute_cmd(cmd=cmd)
+                video_utilities.execute_cmd(cmd=cmd)
             except Exception as err:
                 if 'does not contain any stream' in str(err):
                     have_audio = False
@@ -98,7 +97,7 @@ class WebmConverter(dl.BaseServiceRunner):
                     # -map 0:0 -map 1:0 - we map stream 0 (video) from first file, and stream 0 from second file (mp3) to output.
                     output_file_path
                 ]
-                self.video_handler.execute_cmd(cmd=cmd)
+                video_utilities.execute_cmd(cmd=cmd)
             else:
                 if os.path.isfile(output_file_path):
                     os.remove(output_file_path)
@@ -108,49 +107,12 @@ class WebmConverter(dl.BaseServiceRunner):
                 os.remove(output_file_path)
             os.rename(webm_video, output_file_path)
 
-    def convert_to_webm(self,
-                        input_filepath,
-                        output_filepath,
-                        fps,
-                        nb_frames=None,
-                        progress=None,
-                        item=None,
-                        workdir=None,
-                        nb_streams=1):
-        """
-        Convert and Save the item file in webm format
-
-        :param str input_filepath: the file path to convert
-        :param str output_filepath: the output file path
-        :param int fps: the fps of the file (Frames per second)
-        :param int nb_frames: the number of frames of the file
-        :param dl.Progress progress: progress object to follow the work progress
-        :param dl.item item: the item object of the file
-        :param str workdir: the dir that have the input and output files
-        :param int nb_streams: the number if streams of the file example (nb_streams=2 when the video have an audio)
-        """
-        if self.method == ConversionMethod.FFMPEG:
-            self._convert_to_webm_ffmpeg(
-                input_filepath=input_filepath,
-                output_filepath=output_filepath,
-                fps=fps,
-                nb_frames=nb_frames,
-                progress=progress
-            )
-        elif self.method == ConversionMethod.OPENCV:
-            self._convert_to_webm_opencv(
-                item=item,
-                dir_path=workdir,
-                nb_streams=nb_streams)
-        else:
-            raise Exception(" unsupported converter method")
-
-    def _convert_to_webm_ffmpeg(self,
-                                input_filepath,
-                                output_filepath,
-                                fps,
-                                nb_frames=None,
-                                progress=None):
+    def convert_to_webm_ffmpeg(self,
+                               input_filepath,
+                               output_filepath,
+                               fps,
+                               nb_frames=None,
+                               progress=None):
         """
         Convert and Save the item file in webm format by ffmpeg
 
@@ -174,7 +136,7 @@ class WebmConverter(dl.BaseServiceRunner):
             '-max_muxing_queue_size', '9999',
             output_filepath
         ]
-        self.video_handler.execute_cmd(cmd=cmds, nb_frames=nb_frames, progress=progress)
+        video_utilities.execute_cmd(cmd=cmds, nb_frames=nb_frames, progress=progress)
 
         return
 
@@ -230,7 +192,7 @@ class WebmConverter(dl.BaseServiceRunner):
         :param dict orig_metadata: dict of the original file metadata
         :param dl.item item: the item object of the file
         """
-        webm_ffprobe = self.video_handler.metadata_extractor_from_ffmpeg(stream=webm_filepath, with_headers=False)
+        webm_ffprobe = video_utilities.metadata_extractor_from_ffmpeg(stream=webm_filepath, with_headers=False)
 
         webm_nb_read_frames = webm_ffprobe.get('nb_read_frames', None)
         if webm_nb_read_frames is None:
@@ -268,21 +230,21 @@ class WebmConverter(dl.BaseServiceRunner):
         err_dict = []
         # check fps
         if diff_fps is not None and diff_fps > 0.2:
-            err_dict.append(self.video_handler.error_dict(err_type='webFPSDiff',
-                                                          err_message='Webm has different FPS from original video',
-                                                          err_value=diff_fps,
-                                                          service_name='WebmConverter'))
+            err_dict.append(video_utilities.error_dict(err_type='webFPSDiff',
+                                                       err_message='Webm has different FPS from original video',
+                                                       err_value=diff_fps,
+                                                       service_name='WebmConverter'))
 
             success = False
         # check number of frames
         if orig_nb_read_frames is not None and webm_nb_read_frames is not None and orig_nb_read_frames != webm_nb_read_frames:
-            err_dict.append(self.video_handler.error_dict(err_type='webFrameDiff',
-                                                          err_message='Webm has different frame number from original video',
-                                                          err_value=abs(orig_nb_read_frames - webm_nb_read_frames),
-                                                          service_name='WebmConverter'))
+            err_dict.append(video_utilities.error_dict(err_type='webFrameDiff',
+                                                       err_message='Webm has different frame number from original video',
+                                                       err_value=abs(orig_nb_read_frames - webm_nb_read_frames),
+                                                       service_name='WebmConverter'))
             success = False
         if not success:
-            self.video_handler.update_item_errors(item=item, error_dicts=err_dict)
+            video_utilities.update_item_errors(item=item, error_dicts=err_dict)
         return success, summary
 
     def webm_converter(self,
@@ -304,7 +266,7 @@ class WebmConverter(dl.BaseServiceRunner):
         orig_filepath = item.download(local_path=orig_filepath)
         # if metadata in the item no need to extract it
         if 'ffmpeg' not in item.metadata['system']:
-            orig_metadata = self.video_handler.metadata_extractor_from_ffmpeg(stream=orig_filepath, with_headers=False)
+            orig_metadata = video_utilities.metadata_extractor_from_ffmpeg(stream=orig_filepath, with_headers=False)
         else:
             orig_metadata = {
                 'ffmpeg': item.metadata['system']['ffmpeg'],
@@ -329,17 +291,21 @@ class WebmConverter(dl.BaseServiceRunner):
         logger.info('{} converting with {}'.format(log_header, self.method))
 
         tic = time.time()
-
-        self.convert_to_webm(
-            input_filepath=orig_filepath,
-            output_filepath=webm_filepath,
-            fps=orig_metadata['fps'],
-            nb_frames=orig_metadata.get('nb_read_frames', None),
-            progress=progress,
-            item=item,
-            workdir=workdir,
-            nb_streams=orig_metadata.get('nb_streams', 1),
-        )
+        if self.method == ConversionMethod.FFMPEG:
+            self.convert_to_webm_ffmpeg(
+                input_filepath=orig_filepath,
+                output_filepath=webm_filepath,
+                fps=orig_metadata['fps'],
+                nb_frames=orig_metadata.get('nb_read_frames', None),
+                progress=progress
+            )
+        elif self.method == ConversionMethod.OPENCV:
+            self.convert_to_webm_opencv(
+                item=item,
+                dir_path=workdir,
+                nb_streams=orig_metadata.get('nb_streams', 1))
+        else:
+            raise Exception(" unsupported converter method")
 
         duration = time.time() - tic
         same, summary = self.verify_webm_conversion(
@@ -349,14 +315,14 @@ class WebmConverter(dl.BaseServiceRunner):
         )
 
         # check video correctness fps * duration == frames number
-        validate, exp_frames, validate_msg = self.video_handler.validate_video(fps=summary['webm_fps'],
-                                                                               duration=summary['webm_duration'],
-                                                                               r_frames=summary['webm_nb_read_frames'],
-                                                                               default_start_time=summary[
-                                                                                   'webm_start_time'],
-                                                                               prefix_check='web')
+        validate, exp_frames, validate_msg = video_utilities.validate_video(fps=summary['webm_fps'],
+                                                                            duration=summary['webm_duration'],
+                                                                            r_frames=summary['webm_nb_read_frames'],
+                                                                            default_start_time=summary[
+                                                                                'webm_start_time'],
+                                                                            prefix_check='web')
         if not validate:
-            self.video_handler.update_item_errors(item=item, error_dicts=validate_msg)
+            video_utilities.update_item_errors(item=item, error_dicts=validate_msg)
 
         logger.info(
             '{header} converted with {method}. conversion took: {dur}[s]'.format(
@@ -395,7 +361,7 @@ class WebmConverter(dl.BaseServiceRunner):
         workdir = None
         success = False
         msg = ''
-        self.video_handler._clean_item(item=item, service_name='WebmConverter')
+        video_utilities.clean_item(item=item, service_name='WebmConverter')
         try:
             for _ in range(NUM_RETRIES):
                 try:
