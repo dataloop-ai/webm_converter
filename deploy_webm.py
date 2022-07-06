@@ -57,6 +57,7 @@ package = project.packages.get(package_name=package_name)
 ###########
 # deploy a new service
 service = package.services.deploy(
+    init_input={'method': 'ffmpeg'},
     service_name=package_name,
     execution_timeout=2 * 60 * 60,
     module_name=module[0].name,
