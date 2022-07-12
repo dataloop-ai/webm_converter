@@ -10,13 +10,25 @@ class MailHandler(dl.BaseServiceRunner):
 
     def send_mail(self, email: str, item: dl.Item, msg: str):
         try:
+            # noinspection PyProtectedMember
+            executions = item.resource_executions.list()
+            execution_id = ''
+            for page in executions:
+                for exe in page:
+                    if exe.package_name == self.service_name:
+                        execution_id = exe.execution_id
             dl.projects._send_mail(
                 project_id=None,
                 send_to=email,
-                title='{} fail in project id :  {}'.format(self.service_name, item.project.id),
-                content='item: {} \n dataset: {} \n url: {} \n msg:{}'.format(
+                title='Dataloop WEBM Conversion failed on item :  {}'.format(item.id),
+                content='A video file in your project failed the process of conversion into WEBM format.'
+                        ' Please read the description below and correct the file as needed – it may contain corrupted headers,'
+                        ' frames and metadata, causing the conversion process to fail and preventing annotation work on this item. '
+                        '<br> Project: {} <br> Dataset: {} <br> Item ID: {} <br> Execution ID: {} <br> Item URL: {} <br> Failure message: {}'.format(
+                    item.project.name,
+                    item.dataset.name,
                     item.id,
-                    item.dataset.id,
+                    execution_id,
                     item.platform_url,
                     msg
                 )

@@ -28,7 +28,7 @@ class WebmConverter(dl.BaseServiceRunner):
     def __init__(self, method=None):
         if not method:
             method = ConversionMethod.FFMPEG
-        self.mail_handler = MailHandler(service_name='WebmConverter')
+        self.mail_handler = MailHandler(service_name='webm-converter')
         self.method = method
         if method == ConversionMethod.OPENCV:
             cmd_build_file = ['chmod', '777', 'opencv4_converter']
