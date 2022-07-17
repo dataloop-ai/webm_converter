@@ -363,12 +363,12 @@ class WebmConverter(dl.BaseServiceRunner):
         workdir = None
         success = False
         msg = ''
-        video_utilities.clean_item(item=item, service_name='WebmConverter')
         try:
             for _ in range(NUM_RETRIES):
                 try:
                     workdir = item.id
                     os.makedirs(workdir, exist_ok=True)
+                    video_utilities.clean_item(item=item, service_name='WebmConverter')
                     success, msg = self.webm_converter(item=item, workdir=workdir, progress=progress)
                     if success:
                         break
