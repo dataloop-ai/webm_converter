@@ -176,7 +176,7 @@ class WebmConverter(dl.BaseServiceRunner):
         """
         d = datetime.datetime.utcnow()
         epoch = datetime.datetime(1970, 1, 1)
-        now = (d - epoch).total_seconds()
+        now = (d - epoch).total_seconds() * 1000
         item.modalities.create(
             modality_type='replace',
             ref=modality_item.id,
