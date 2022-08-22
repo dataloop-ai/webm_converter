@@ -275,7 +275,7 @@ class WebmConverter(dl.BaseServiceRunner):
                 'start_time': item.metadata.get('startTime', 0),
                 'height': item.height,
                 'width': item.width,
-                'fps': item.metadata['fps'],
+                'fps': item.metadata.get('fps', None),
                 'nb_streams': item.metadata['system'].get('nb_streams', 1)
             }
 
@@ -291,7 +291,9 @@ class WebmConverter(dl.BaseServiceRunner):
         logger.info('{header} downloading item'.format(header=log_header))
 
         logger.info('{} converting with {}'.format(log_header, self.method))
-
+        valid_data, msg = video_utilities.validate_metadata(metadata=orig_metadata)
+        if not valid_data:
+            return valid_data, msg
         tic = time.time()
         if self.method == ConversionMethod.FFMPEG:
             self.convert_to_webm_ffmpeg(
