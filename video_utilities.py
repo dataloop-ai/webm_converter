@@ -229,3 +229,13 @@ def clean_item(item: dl.Item, service_name: str):
         for err in errors:
             if err.get('service', '') == service_name:
                 item.metadata['system']['errors'].remove(err)
+
+
+def validate_metadata(metadata):
+    missing = [key for key, val in metadata.items() if
+               not val and key in ['ffmpeg', 'height', 'width', 'fps', 'duration']]
+    if 'nb_read_frames' not in metadata and 'nb_frames' not in metadata:
+        missing.append('nb_read_frames')
+    if len(missing) != 0:
+        return False, 'missing metadata values {}'.format(missing)
+    return True, ''
