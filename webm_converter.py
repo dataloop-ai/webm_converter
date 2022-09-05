@@ -187,7 +187,7 @@ class WebmConverter(dl.BaseServiceRunner):
         item.update(system_metadata=True)
         item.dataset.items.update(filters=dl.Filters(field='spec.parentDatasetItemId',
                                                      values=item.id),
-                                  system_update_values=item.metadata['system'],
+                                  system_update_values={'modalities': item.metadata['system'].get('modalities', [])},
                                   system_metadata=True)
 
     def verify_webm_conversion(self, webm_filepath: str, orig_metadata: dict, item=None):
