@@ -166,7 +166,7 @@ class WebmConverter(dl.BaseServiceRunner):
         return webm_item
 
     @staticmethod
-    def _set_item_modality(item, modality_item):
+    def _set_item_modality(item: dl.Item, modality_item):
         """
         set the item modality
 
@@ -185,6 +185,10 @@ class WebmConverter(dl.BaseServiceRunner):
             timestamp=int(now)
         )
         item.update(system_metadata=True)
+        item.dataset.items.update(filters=dl.Filters(field='spec.parentDatasetItemId',
+                                                     values=item.id),
+                                  system_update_values=item.metadata['system'],
+                                  system_metadata=True)
 
     def verify_webm_conversion(self, webm_filepath: str, orig_metadata: dict, item=None):
         """
