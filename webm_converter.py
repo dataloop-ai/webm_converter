@@ -186,7 +186,7 @@ class WebmConverter(dl.BaseServiceRunner):
         )
         item.update(system_metadata=True)
         item.dataset.items.update(filters=dl.Filters(field='spec.parentDatasetItemId',
-                                                     values=item.id),
+                                                     values=item.id, use_defaults=False),
                                   system_update_values={'modalities': item.metadata['system'].get('modalities', [])},
                                   system_metadata=True)
 
