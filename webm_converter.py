@@ -274,10 +274,7 @@ class WebmConverter(dl.BaseServiceRunner):
         if new_env:
             current_env = dl.environment().split('.')[0].split('//')[1]
             dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
-            orig_filepath = item.download(local_path=orig_filepath)
-            dl.client_api.environment = dl.client_api.environment.replace(new_env, current_env)
-        else:
-            orig_filepath = item.download(local_path=orig_filepath)
+        orig_filepath = item.download(local_path=orig_filepath)
 
         # if metadata in the item no need to extract it
         if 'ffmpeg' not in item.metadata['system']:
