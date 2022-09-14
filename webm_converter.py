@@ -37,6 +37,8 @@ class WebmConverter(dl.BaseServiceRunner):
         if new_env:
             current_env = dl.environment().split('.')[0].split('//')[1]
             dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
+            dl.client_api.environment = dl.client_api.environment.replace('https', 'http')
+
 
     def convert_to_webm_opencv(self, item, dir_path, nb_streams):
         """
