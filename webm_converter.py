@@ -269,7 +269,16 @@ class WebmConverter(dl.BaseServiceRunner):
         log_header = '[preprocess][on_create][{item_id}][{func}]'.format(item_id=item.id, func='webm-converter')
         webm_filepath = os.path.join(workdir, '{}.webm'.format(item.id))
         orig_filepath = os.path.join(workdir, item.name)
-        orig_filepath = item.download(local_path=orig_filepath)
+
+        new_env = os.environ.get('INTERNAL_GATE_URL', None)
+        if new_env:
+            current_env = dl.environment().split('.')[0].split('//')[1]
+            dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
+            orig_filepath = item.download(local_path=orig_filepath)
+            dl.client_api.environment = dl.client_api.environment.replace(new_env, current_env)
+        else:
+            orig_filepath = item.download(local_path=orig_filepath)
+
         # if metadata in the item no need to extract it
         if 'ffmpeg' not in item.metadata['system']:
             orig_metadata = video_utilities.metadata_extractor_from_ffmpeg(stream=orig_filepath, with_headers=False)
@@ -340,27 +349,22 @@ class WebmConverter(dl.BaseServiceRunner):
             )
         )
 
-        if same and validate:
-            # upload web to platform
-            webm_item = self._upload_webm_item(
-                item=item,
-                webm_file_path=webm_filepath
-            )
+        # upload web to platform
+        webm_item = self._upload_webm_item(
+            item=item,
+            webm_file_path=webm_filepath
+        )
 
-            if not isinstance(webm_item, dl.Item):
-                raise Exception('Failed to upload webm')
+        if not isinstance(webm_item, dl.Item):
+            raise Exception('Failed to upload webm')
 
-            # set modality on original
-            self._set_item_modality(
-                item=item,
-                modality_item=webm_item
-            )
+        # set modality on original
+        self._set_item_modality(
+            item=item,
+            modality_item=webm_item
+        )
 
-            return True, ''
-        elif not same:
-            return False, summary
-        else:
-            return False, validate_msg
+        return True, ''
 
     def run(self, item: dl.Item, progress=None):
         ##################
