@@ -33,6 +33,10 @@ class WebmConverter(dl.BaseServiceRunner):
         if method == ConversionMethod.OPENCV:
             cmd_build_file = ['chmod', '777', 'opencv4_converter']
             video_utilities.execute_cmd(cmd=cmd_build_file)
+        new_env = os.environ.get('INTERNAL_GATE_URL', None)
+        if new_env:
+            current_env = dl.environment().split('.')[0].split('//')[1]
+            dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
 
     def convert_to_webm_opencv(self, item, dir_path, nb_streams):
         """
@@ -269,11 +273,6 @@ class WebmConverter(dl.BaseServiceRunner):
         log_header = '[preprocess][on_create][{item_id}][{func}]'.format(item_id=item.id, func='webm-converter')
         webm_filepath = os.path.join(workdir, '{}.webm'.format(item.id))
         orig_filepath = os.path.join(workdir, item.name)
-
-        new_env = os.environ.get('INTERNAL_GATE_URL', None)
-        if new_env:
-            current_env = dl.environment().split('.')[0].split('//')[1]
-            dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
         orig_filepath = item.download(local_path=orig_filepath)
 
         # if metadata in the item no need to extract it
