@@ -390,6 +390,8 @@ class WebmConverter(dl.BaseServiceRunner):
                 raise Exception(msg)
 
         except Exception as e:
+            if 'Invalid data found when processing input' in str(e):
+                e = "Failed to convert to webm because the downloaded file is corrupted."
             self.mail_handler.send_alert(item=item, msg=str(e))
             raise ValueError('[webm-converter] failed\n error: {}'.format(e))
         finally:
