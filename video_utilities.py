@@ -61,6 +61,7 @@ def extract_metadata(item_stream, with_headers=False):
         cmd = ['ffprobe',
                '-select_streams',
                'v:0',
+               '-hide_banner',
                '-count_frames',
                '-count_packets',
                '-show_format',
