@@ -102,6 +102,7 @@ class WebmConverter(dl.BaseServiceRunner):
                     '0:0',
                     '-map',
                     '1:0',
+                    '-hide_banner',
                     # -map 0:0 -map 1:0 - we map stream 0 (video) from first file, and stream 0 from second file (mp3) to output.
                     output_file_path
                 ]
@@ -138,6 +139,7 @@ class WebmConverter(dl.BaseServiceRunner):
             '-i', input_filepath,
             # Overwrite output files without asking
             '-y',
+            '-hide_banner',
             # Log level
             '-v', 'info',
             # Duplicate or drop input frames to achieve constant output frame rate fps.
