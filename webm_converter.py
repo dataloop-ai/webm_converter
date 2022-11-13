@@ -34,11 +34,14 @@ class WebmConverter(dl.BaseServiceRunner):
             cmd_build_file = ['chmod', '777', 'opencv4_converter']
             video_utilities.execute_cmd(cmd=cmd_build_file)
         new_env = os.environ.get('INTERNAL_GATE_URL', None)
-        if new_env:
+        if new_env and new_env not in dl.client_api.environment:
+            url = dl.client_api.environment
             current_env = dl.environment().split('.')[0].split('//')[1]
             dl.client_api.environment = dl.client_api.environment.replace(current_env, new_env)
             dl.client_api.environment = dl.client_api.environment.replace('https', 'http')
-
+            dl.client_api.add_environment(environment=dl.client_api.environment,
+                                          alias=new_env,
+                                          url=url)
 
     def convert_to_webm_opencv(self, item, dir_path, nb_streams):
         """

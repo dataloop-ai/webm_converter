@@ -18,7 +18,7 @@ class MailHandler(dl.BaseServiceRunner):
                     if exe.package_name == self.service_name:
                         execution_id = exe.execution_id
             dl.projects._send_mail(
-                project_id=None,
+                project_id=item.project_id,
                 send_to=email,
                 title='Dataloop WEBM Conversion failed on item :  {}'.format(item.id),
                 content='A video file in your project failed the process of conversion into WEBM format.'
