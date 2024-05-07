@@ -30,6 +30,7 @@ class WebmConverter(dl.BaseServiceRunner):
             method = ConversionMethod.FFMPEG
         self.mail_handler = MailHandler(service_name='custom-webm-converter')
         self.method = method
+        self.channel_id = None
         if method == ConversionMethod.OPENCV:
             cmd_build_file = ['chmod', '777', 'opencv4_converter']
             video_utilities.execute_cmd(cmd=cmd_build_file)
@@ -343,6 +344,7 @@ class WebmConverter(dl.BaseServiceRunner):
                                                                             prefix_check='web')
         if not validate:
             video_utilities.update_item_errors(item=item, error_dicts=validate_msg)
+            video_utilities.send_error_event(item.project.id, self.channel_id)
 
         logger.info(
             '{header} converted with {method}. conversion took: {dur}[s]'.format(
@@ -369,6 +371,34 @@ class WebmConverter(dl.BaseServiceRunner):
 
         return True, ''
 
+    def subscribe_events(self, project: dl.Project):
+        app = dl.apps.get(app_name='dataloop-email-channel')
+        composition = app.project.compositions.get(composition_id=app.composition_id)
+        channel_id = composition['channels'][0]['state']['channelId']
+        self.channel_id = channel_id
+
+        dl.client_api.gen_request(path='/notifications', req_type='post', json_req=
+        {
+            "name": 'webmConverterFailed',
+            "channels": [channel_id],
+            "context": {
+                "project": project.id,
+                "org": project.org['id'],
+                "creator": dl.info()['user_email']
+            },
+            "minPriority": 100,
+            "notificationCodes": ['Platform.DataManagement.Item.ETL.ProcessFailed'],
+            "contextMatch": {
+                "project": project.id,
+                "org": project.org['id'],
+            },
+            "target": {
+                "minRole": dl.Role.DEVELOPER,
+                "type": "project.role",
+                "project": project.id,
+            }
+        })
+
     def run(self, item: dl.Item, progress=None):
         ##################
         # webm converter #
@@ -380,6 +410,7 @@ class WebmConverter(dl.BaseServiceRunner):
             for _ in range(NUM_RETRIES):
                 try:
                     workdir = item.id
+                    self.subscribe_events(project=item.project)
                     os.makedirs(workdir, exist_ok=True)
                     video_utilities.clean_item(item=item, service_name='WebmConverter')
                     success, msg = self.webm_converter(item=item, workdir=workdir, progress=progress)

@@ -197,6 +197,27 @@ def error_dict(err_type, err_message, err_value, service_name):
     }
 
 
+def send_error_event(item_id: str, project_id: str, channel_id: str):
+    """
+    send error event
+    """
+    payload = {
+        "notificationCode": "Platform.DataManagement.Item.ETL.ProcessFailed",
+        "channels": [channel_id],
+        "context": {"project": project_id},
+        "eventMessage": {"title": 'webm result',
+                         "description": f"{item_id} has errors"
+                         },
+        "priority": 100,
+        "type": 'system',
+        "body": {},
+    }
+    dl.client_api.gen_request(req_type='post',
+                              path='/notifications/publish',
+                              json_req=payload
+                              )
+
+
 def update_item_errors(item: dl.Item, error_dicts):
     """
     update the item metadata with the relevant errors
