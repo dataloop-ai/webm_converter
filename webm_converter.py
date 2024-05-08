@@ -344,7 +344,7 @@ class WebmConverter(dl.BaseServiceRunner):
                                                                             prefix_check='web')
         if not validate:
             video_utilities.update_item_errors(item=item, error_dicts=validate_msg)
-            video_utilities.send_error_event(item.id, item.project.id)
+            video_utilities.send_error_event(item)
 
         logger.info(
             '{header} converted with {method}. conversion took: {dur}[s]'.format(
