@@ -197,6 +197,26 @@ def error_dict(err_type, err_message, err_value, service_name):
     }
 
 
+def send_error_event(item: dl.Item):
+    """
+    send error event
+    """
+    payload = {
+        "notificationCode": "Platform.DataManagement.Item.ETL.ProcessFailed",
+        "context": {"project": item.project.id, "org": item.project.org['id'], "dataset": item.dataset.id},
+        "eventMessage": {"title": 'WebM Conversion Failed',
+                         "description": f"One or more files finished conversion to WebM but may not be available for annotation work. This often results from Metadata missmatch, such as height-width information, or corrupted files. Investigate the files from enclosed links and resolve by adding new, correct files to the task."
+                         },
+        "priority": 100,
+        "type": 'system',
+        "body": {},
+    }
+    dl.client_api.gen_request(req_type='post',
+                              path='/notifications/publish',
+                              json_req=payload
+                              )
+
+
 def update_item_errors(item: dl.Item, error_dicts):
     """
     update the item metadata with the relevant errors
