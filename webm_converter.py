@@ -30,7 +30,6 @@ class WebmConverter(dl.BaseServiceRunner):
             method = ConversionMethod.FFMPEG
         self.mail_handler = MailHandler(service_name='custom-webm-converter')
         self.method = method
-        self.channel_id = None
         if method == ConversionMethod.OPENCV:
             cmd_build_file = ['chmod', '777', 'opencv4_converter']
             video_utilities.execute_cmd(cmd=cmd_build_file)
