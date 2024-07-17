@@ -283,7 +283,7 @@ class WebmConverter(dl.BaseServiceRunner):
         orig_filepath = item.download(local_path=orig_filepath)
 
         # if metadata in the item no need to extract it
-        if 'ffmpeg' not in item.metadata['system']:
+        if 'ffmpeg' not in item.metadata['system'] or 'nb_read_frames' not in item.metadata['system']['ffmpeg']:
             orig_metadata = video_utilities.metadata_extractor_from_ffmpeg(stream=orig_filepath, with_headers=False)
         else:
             orig_metadata = {
