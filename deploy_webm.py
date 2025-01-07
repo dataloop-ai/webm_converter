@@ -41,7 +41,7 @@ package = project.packages.push(
         'runtime': dl.KubernetesRuntime(
             concurrency=1,
             pod_type=dl.InstanceCatalog.REGULAR_S,
-            runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:6',
+            runner_image='gcr.io/viewo-g/piper/agent/cpu/webm:8',
             autoscaler=dl.KubernetesRabbitmqAutoscaler(
                 min_replicas=1,
                 max_replicas=2,
