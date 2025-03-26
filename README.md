@@ -1,32 +1,97 @@
-# WEBM Converters
+# **WEBM Converters**
 
-This is Dataloop's App that converts a video to a WEBM format.   
+A Dataloop application designed to convert video files into the WEBM format, an open, royalty-free media format optimized for web use.
 
-What is WEBM?:  
-WEBM is an open, royalty-free, media file format designed for the web.
+---
 
-## How Does It Work?
+## **Table of Contents**
 
-The base class has the following methods:
+- [Overview](#overview)
+- [Prerequisites](#prerequisites)
+- [Installation & Setup](#installation--setup)
+- [Usage](#usage)
+- [How It Works](#how-it-works)
+- [Contributing](#contributing)
+- [Troubleshooting](#troubleshooting)
 
-* run (the main function)
-* webm_converter
-* _convert_to_webm_opencv
-* _convert_to_webm_ffmpeg
-* verify_webm_conversion
-* validate_video
+---
 
-The user has to choose the converter method (opencv/ffmpeg).  
-The function run starts by downloading the file and sending it to the converter function. 
-This converts the file and saves it in the working directory. 
-After that, it checks that the video is valid. If it is not valid, it will add info to the metadata
-and at the end upload the file to the platform.
+## **Overview**
 
-## Create App (Service)
+The `WEBM Converter` app allows users to seamlessly convert videos to WEBM format directly within the Dataloop environment. It supports conversion using two methods: `OpenCV` or `FFmpeg`, providing flexibility according to project requirements.
 
-Run the code in the file [deploy_webm](deploy_webm.py)
+---
 
+## **Prerequisites**
 
-## Contribute
+- **Python 3.7 or higher**
+- **Dataloop Python SDK** ([Installation Guide](https://github.com/dataloop-ai/dtlpy))
+- **Dataloop CLI** ([CLI Documentation](https://sdk-docs.dataloop.ai/en/latest/cli.html))
+- **Git**
 
-We welcome any type of contribution! For bug or feature requests please open an issue.
+---
+
+## **Installation & Setup**
+
+Clone the repository:
+
+```bash
+git clone https://github.com/dataloop-ai-apps/webm_converter.git
+cd webm_converter
+```
+
+Install necessary dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## **Usage**
+
+### **Deploying the App**
+
+Deploy the app service by running:
+
+```bash
+python deploy_webm.py
+```
+
+This sets up the app within your Dataloop project environment.
+
+---
+
+## **How It Works**
+
+The application workflow is managed by the following methods:
+
+- **`run()`**: Main function that initiates file downloading and conversion.
+- **`webm_converter()`**: Handles the selection of the conversion method.
+- **`_convert_to_webm_opencv()`**: Converts video using OpenCV.
+- **`_convert_to_webm_ffmpeg()`**: Converts video using FFmpeg.
+- **`verify_webm_conversion()`**: Verifies if the converted video is valid.
+- **`validate_video()`**: Validates the integrity and metadata of the video file.
+
+The workflow involves:
+1. Downloading the video file.
+2. Converting the file using the selected method.
+3. Validating and verifying the converted video.
+4. Uploading the converted file back to the Dataloop platform.
+
+---
+
+## **Contributing**
+
+Contributions are warmly welcomed! To report bugs, request features, or contribute code improvements, please open an issue or create a pull request.
+
+---
+
+## **Troubleshooting**
+
+- **Conversion issues:**
+  - Ensure that dependencies (FFmpeg, OpenCV) are correctly installed.
+- **Deployment issues:**
+  - Check your Dataloop SDK and CLI configurations.
+
+---
